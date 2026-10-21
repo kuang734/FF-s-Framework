@@ -177,10 +177,9 @@ DJIMotorInstance *DJIMotorInit(Motor_Init_Config_s *config)
     instance->motor_settings = config->controller_setting_init_config; // 正反转,闭环类型等
 
     // motor controller init 电机控制器初始化
-    // [重力补偿重测] PID 已注释: 纯前馈标定阶段不初始化 PID 控制器(与下方计算处注释配套)
-    // PIDInit(&instance->motor_controller.current_PID, &config->controller_param_init_config.current_PID);
-    // PIDInit(&instance->motor_controller.speed_PID, &config->controller_param_init_config.speed_PID);
-    // PIDInit(&instance->motor_controller.angle_PID, &config->controller_param_init_config.angle_PID);
+    PIDInit(&instance->motor_controller.current_PID, &config->controller_param_init_config.current_PID);
+    PIDInit(&instance->motor_controller.speed_PID, &config->controller_param_init_config.speed_PID);
+    PIDInit(&instance->motor_controller.angle_PID, &config->controller_param_init_config.angle_PID);
     instance->motor_controller.other_angle_feedback_ptr = config->controller_param_init_config.other_angle_feedback_ptr;
     instance->motor_controller.other_speed_feedback_ptr = config->controller_param_init_config.other_speed_feedback_ptr;
     instance->motor_controller.current_feedforward_ptr = config->controller_param_init_config.current_feedforward_ptr;
@@ -273,9 +272,7 @@ void DJIMotorControl()
             else
                 pid_measure = measure->total_angle; // MOTOR_FEED,对total angle闭环,防止在边界处出现突跃
             // 更新pid_ref进入下一个环
-            // [重力补偿重测] 角度环 PID 已注释: 输出清零, 断开串级, 仅保留末端重力前馈
-            // pid_ref = PIDCalculate(&motor_controller->angle_PID, pid_measure, pid_ref);
-            pid_ref = 0; // 开环前馈标定: 角度环不参与控制
+            pid_ref = PIDCalculate(&motor_controller->angle_PID, pid_measure, pid_ref);
         }
 
         // 计算速度环,(外层闭环为速度或位置)且(启用速度环)时会计算速度环
@@ -289,9 +286,7 @@ void DJIMotorControl()
             else // MOTOR_FEED
                 pid_measure = measure->speed_aps;
             // 更新pid_ref进入下一个环
-            // [重力补偿重测] 速度环 PID 已注释: 输出清零, 断开串级, 仅保留末端重力前馈
-            // pid_ref = PIDCalculate(&motor_controller->speed_PID, pid_measure, pid_ref);
-            pid_ref = 0; // 开环前馈标定: 速度环不参与控制
+            pid_ref = PIDCalculate(&motor_controller->speed_PID, pid_measure, pid_ref);
         }
 
         // 计算电流环,目前只要启用了电流环就计算,不管外层闭环是什么,并且电流只有电机自身传感器的反馈
